@@ -95,6 +95,6 @@ Already installed without Lite? Run `LITE=1 mewarch-lite`, then log out and back
 ## Caveats
 
 - This isn't tested on real hardware yet. The scripts are syntax-checked and the Caelestia patch was tested against Caelestia's current source.
-- Black screen on Optimus: run `ls -l /dev/dri/` and swap the order in the `AQ_DRM_DEVICES` line of `hypr-user.lua`.
+- Black screen on Optimus: run `ls -l /dev/dri/` and add an `hl.env("AQ_DRM_DEVICES", ...)` line to `hypr-user.lua` listing your GPUs (see the Hyprland wiki, Multi-GPU).
 - Older NVIDIA cards (GTX 9xx/10xx, MX1xx–3xx) use the AUR `nvidia-580xx` driver. Detection is a name match, so check that it picked correctly.
 - If a Caelestia update changes `OsIcon.qml` a lot, the patch skips itself and you get the stock tinted icon, not a crash.

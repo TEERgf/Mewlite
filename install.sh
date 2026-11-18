@@ -292,8 +292,8 @@ sed -i '/-- >>> mewarch-gpu >>>/,/-- <<< mewarch-gpu <<</d' "$HYPR_USER"
   if [[ $HAS_NVIDIA == 1 && $OPTIMUS == 1 ]]; then
     IGPU=gpu-intel; [[ $HAS_INTEL == 0 ]] && IGPU=gpu-amd
     cat <<EOF
--- Optimus: desktop runs on the integrated GPU, NVIDIA sleeps. Games: prime-run <app>
-hl.env("AQ_DRM_DEVICES", "/dev/dri/$IGPU:/dev/dri/gpu-nvidia")
+-- Optimus: Hyprland picks the integrated GPU as primary by itself and still
+-- drives outputs wired to the NVIDIA card (e.g. HDMI). Games: prime-run <app>
 hl.env("NVD_BACKEND", "direct")
 EOF
   elif [[ $HAS_NVIDIA == 1 ]]; then
