@@ -66,7 +66,13 @@ if ask "1) Tune pacman/makepkg (parallel downloads, multilib, fast mirrors)?"; t
   # skip compressing AUR packages you build yourself (much faster builds)
   sudo sed -i "s/^PKGEXT=.*/PKGEXT='.pkg.tar'/" /etc/makepkg.conf
   sudo pacman -Sy --needed --noconfirm reflector   # -y: refresh so the newly enabled [multilib] db exists
-  sudo reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist || c_warn "reflector failed, keeping mirrors"
+  # test only mirrors near you (country from your IP), short timeouts, then add the
+  # worldwide GeoDNS mirror as a fallback at the top
+  CC=$(curl -s --max-time 5 https://ipinfo.io/country 2>/dev/null | tr -d '[:space:]')
+  RARGS=(--protocol https --age 24 --fastest 5 --download-timeout 3 --connection-timeout 3)
+  if [[ $CC =~ ^[A-Z]{2}$ ]]; then RARGS+=(--country "$CC"); else RARGS+=(--latest 10); fi
+  sudo reflector "${RARGS[@]}" --save /etc/pacman.d/mirrorlist || c_warn "reflector failed, keeping mirrors"
+  sudo sed -i '1i Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' /etc/pacman.d/mirrorlist
   sudo pacman -Syu --noconfirm
 fi
 
