@@ -48,7 +48,7 @@ import json, sys
 for m in json.load(sys.stdin):
     if m["name"] == sys.argv[1]:
         for x in m["availableModes"]: print("  " + x)
-        print(f"Now: {m[\"width\"]}x{m[\"height\"]} @ {m[\"refreshRate\"]:.0f} Hz")' "$OUT"
+        print("Now: %dx%d @ %.0f Hz" % (m["width"], m["height"], m["refreshRate"]))' "$OUT"
     echo -n "Saved: "; grep -m1 'local MODE' "$HU" 2>/dev/null | cut -d'"' -f2 || echo "(nothing)"
     exit 0 ;;
   native|reset)
@@ -104,7 +104,7 @@ for M in "${cands[@]}"; do
   now=$(hyprctl monitors -j | python3 -c '
 import json, sys
 for m in json.load(sys.stdin):
-    if m["name"] == sys.argv[1]: print(f"{m[\"width\"]}x{m[\"height\"]} @ {m[\"refreshRate\"]:.0f} Hz")' "$OUT")
+    if m["name"] == sys.argv[1]: print("%dx%d @ %.0f Hz" % (m["width"], m["height"], m["refreshRate"]))' "$OUT")
   echo "   Monitor is now: ${now:-unknown}"
   echo "   Can you read this? Type  y  + Enter within 15 s to KEEP it (black screen? just wait)."
   if read -r -t 15 ans && [[ ${ans,,} == y* ]]; then
