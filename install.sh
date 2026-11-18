@@ -98,7 +98,19 @@ if [[ $HAS_NVIDIA == 1 ]] && ask "4) Install + configure NVIDIA driver (Optimus-
     c_warn "Older NVIDIA GPU detected -> using the 580xx legacy branch from the AUR."
     aur nvidia-580xx-dkms nvidia-580xx-utils lib32-nvidia-580xx-utils
   else
-    pac nvidia-open-dkms nvidia-utils lib32-nvidia-utils
+    # pre-built driver for the stock kernels (no compiling); DKMS only for other kernels
+    NVPKGS=()
+    for k in "${KERNELS[@]}"; do
+      case "$k" in
+        linux)     NVPKGS+=(nvidia-open) ;;
+        linux-lts) NVPKGS+=(nvidia-open-lts) ;;
+        *)         NVPKGS+=(nvidia-open-dkms) ;;
+      esac
+    done
+    # never install both a pre-built package and dkms for the same driver
+    if printf '%s\n' "${NVPKGS[@]}" | grep -qx nvidia-open-dkms; then NVPKGS=(nvidia-open-dkms); fi
+    pacman -Q nvidia-open-dkms &>/dev/null && NVPKGS=(nvidia-open-dkms)   # already built, keep it
+    pac "${NVPKGS[@]}" nvidia-utils lib32-nvidia-utils
   fi
   pac egl-wayland libva-nvidia-driver nvidia-settings
   [[ $OPTIMUS == 1 ]] && pac nvidia-prime     # gives you: prime-run <app>
