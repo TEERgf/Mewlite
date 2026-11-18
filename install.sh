@@ -246,7 +246,11 @@ fi
 
 # ----------------------------------------------- 8. Hyprland + Caelestia --
 if [[ $CAELESTIA == 1 ]] && ask "8) Install Hyprland + Caelestia dots?"; then
-  pac hyprland xdg-desktop-portal-hyprland pipewire pipewire-pulse wireplumber
+  # archinstall may have picked PulseAudio; Caelestia needs PipeWire, and they conflict
+  for p in pulseaudio-bluetooth pulseaudio-alsa pulseaudio-jack pulseaudio-zeroconf pulseaudio; do
+    pacman -Q "$p" &>/dev/null && sudo pacman -Rdd --noconfirm "$p"
+  done
+  pac hyprland xdg-desktop-portal-hyprland pipewire pipewire-pulse pipewire-alsa wireplumber
   DOTS="$HOME/.local/share/caelestia"
   [[ -d $DOTS ]] || git clone https://github.com/caelestia-dots/caelestia.git "$DOTS"
   (cd "$DOTS" && fish ./install.fish --noconfirm) || c_warn "Caelestia installer reported an error – check output above."
