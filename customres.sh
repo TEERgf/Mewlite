@@ -89,7 +89,7 @@ sys.exit(1)' "$W" "$H" "$R" "$OUT"; then
 else
   # 2) build custom timings (different monitors accept different ones)
   cands=()
-  to_hypr(){ sed -nE 's/^Modeline +"[^"]*" +/modeline /p'; }
+  to_hypr(){ sed -nE 's/^Modeline +"[^"]*" +/modeline /p' | tr -s ' ' | sed 's/ *$//'; }
   if command -v cvt >/dev/null; then
     [[ $R =~ ^[0-9]+$ ]] && (( R % 60 == 0 )) && cands+=("$(cvt -r "$W" "$H" "$R" 2>/dev/null | to_hypr)")
     cands+=("$(cvt "$W" "$H" "$R" 2>/dev/null | to_hypr)")
@@ -121,6 +121,11 @@ import json, sys
 for m in json.load(sys.stdin):
     if m["name"] == sys.argv[1]: print("%dx%d @ %.0f Hz" % (m["width"], m["height"], m["refreshRate"]))' "$OUT")
   echo "   Monitor is now: ${now:-unknown}"
+  if [[ $res != ok || ${now%% @*} != "${W}x${H}" ]]; then
+    echo "   -> The monitor did NOT switch to ${W}x${H}, skipping this one."
+    hyprctl reload >/dev/null 2>&1; sleep 2; laptop true
+    continue
+  fi
   echo "   Can you read this? Type  y  + Enter within 15 s to KEEP it (black screen? just wait)."
   if read -r -t 15 ans && [[ ${ans,,} == y* ]]; then
     save "$M"
