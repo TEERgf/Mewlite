@@ -3,6 +3,9 @@
 #   ./screen.sh                  external only, 2560x1080 @ 165 Hz
 #   ./screen.sh 1920x1080@144    external only, another mode
 #   ./screen.sh --both           back to using both screens
+#   ./screen.sh custom 1152 864 200   force a custom mode (CVT-RB2 modeline); may show
+#                                     "out of range" if the monitor can't do it -> undo
+#                                     from a text screen: ./screen.sh 2560x1080@165
 # Safe: if no external monitor is connected at login, the laptop screen stays on.
 set -euo pipefail
 MODE=${1:-2560x1080@165}
@@ -14,13 +17,33 @@ if [[ $MODE == --both ]]; then
   echo "Both screens on again. Log out/in or reboot to apply."
   exit 0
 fi
-[[ $MODE =~ ^[0-9]+x[0-9]+(@[0-9.]+)?$ ]] || { echo "Mode should look like 1152x864@200"; exit 1; }
+CUSTOM=0
+if [[ $MODE == custom ]]; then
+  W=${2:?width}; H=${3:?height}; R=${4:?refresh}
+  # CVT reduced blanking v2 timings
+  MODE=$(python3 - "$W" "$H" "$R" <<'PY2'
+import sys, math
+w, h, r = int(sys.argv[1]), int(sys.argv[2]), float(sys.argv[3])
+hfp, hsync, hbp = 8, 32, 40                      # RB2: 80 px horizontal blank
+vsync, vbp, min_vblank_us = 8, 6, 460
+htotal = w + hfp + hsync + hbp
+vtotal = math.ceil(h / (1 - min_vblank_us * r / 1e6))
+vfp = vtotal - h - vsync - vbp
+clock = htotal * vtotal * r / 1e6
+print(f"modeline {clock:.2f} {w} {w+hfp} {w+hfp+hsync} {htotal} {h} {h+vfp} {h+vfp+vsync} {vtotal} +hsync -vsync")
+PY2
+)
+  CUSTOM=1
+  echo "Custom mode: $MODE"
+elif ! [[ $MODE =~ ^[0-9]+x[0-9]+(@[0-9.]+)?$ ]]; then
+  echo "Mode should look like 1152x864@200  (or: ./screen.sh custom 1152 864 200)"; exit 1
+fi
 
 # refuse modes the monitor doesn't offer (a wrong mode = black screen)
 RT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 export HYPRLAND_INSTANCE_SIGNATURE=${HYPRLAND_INSTANCE_SIGNATURE:-$(ls -t "$RT/hypr/" 2>/dev/null | head -1)}
 MODES=$(hyprctl monitors all 2>/dev/null | grep availableModes | grep -v "1920x1200@165" || true)
-if [[ -n $MODES ]]; then
+if [[ -n $MODES && $CUSTOM == 0 ]]; then
   want=${MODE%@*}; hz=${MODE#*@}; [[ $hz == "$MODE" ]] && hz=""
   if ! tr ' ' '\n' <<<"$MODES" | grep -q "^${want}@${hz}"; then
     echo "Your monitor does NOT support $MODE ;w;  Nothing was changed."
