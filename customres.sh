@@ -132,5 +132,6 @@ for m in json.load(sys.stdin):
   echo "   Not kept -> switching back..."
   hyprctl reload >/dev/null 2>&1
   sleep 3
+  laptop true        # keep the laptop screen off between tries
 done
 echo; echo "Your monitor refused every timing for ${W}x${H} @ ${R} Hz ;w;  Try a lower refresh rate."
