@@ -305,10 +305,6 @@ hl.env("GBM_BACKEND", "nvidia-drm")
 hl.env("NVD_BACKEND", "direct")
 EOF
   fi
-  cat <<'EOF'
--- only redraw when something changes
-hl.config({ misc = { vfr = true, disable_splash_rendering = true } })
-EOF
   echo "-- <<< mewarch-gpu <<<"
 } >> "$HYPR_USER"
 # old-format file from earlier MewArch versions is ignored by Caelestia now
