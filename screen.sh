@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # MewArch: use only the external monitor (laptop screen off) when one is plugged in.
-#   ./screen.sh                  external only, 1152x864 @ 200 Hz
+#   ./screen.sh                  external only, 2560x1080 @ 165 Hz
 #   ./screen.sh 1920x1080@144    external only, another mode
 #   ./screen.sh --both           back to using both screens
 # Safe: if no external monitor is connected at login, the laptop screen stays on.
 set -euo pipefail
-MODE=${1:-1152x864@200}
+MODE=${1:-2560x1080@165}
 HU="$HOME/.config/caelestia/hypr-user.lua"
 mkdir -p "$(dirname "$HU")"; touch "$HU"
 sed -i '/-- >>> mewarch-screens >>>/,/-- <<< mewarch-screens <<</d' "$HU"
@@ -15,6 +15,20 @@ if [[ $MODE == --both ]]; then
   exit 0
 fi
 [[ $MODE =~ ^[0-9]+x[0-9]+(@[0-9.]+)?$ ]] || { echo "Mode should look like 1152x864@200"; exit 1; }
+
+# refuse modes the monitor doesn't offer (a wrong mode = black screen)
+RT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+export HYPRLAND_INSTANCE_SIGNATURE=${HYPRLAND_INSTANCE_SIGNATURE:-$(ls -t "$RT/hypr/" 2>/dev/null | head -1)}
+MODES=$(hyprctl monitors all 2>/dev/null | grep availableModes | grep -v "1920x1200@165" || true)
+if [[ -n $MODES ]]; then
+  want=${MODE%@*}; hz=${MODE#*@}; [[ $hz == "$MODE" ]] && hz=""
+  if ! tr ' ' '\n' <<<"$MODES" | grep -q "^${want}@${hz}"; then
+    echo "Your monitor does NOT support $MODE ;w;  Nothing was changed."
+    echo "Modes it supports:"
+    tr ' ' '\n' <<<"$MODES" | grep -oE '^[0-9]+x[0-9]+@[0-9]+' | sort -t@ -k1,1 -k2,2nr -u | head -20
+    exit 1
+  fi
+fi
 
 cat >> "$HU" <<EOF
 -- >>> mewarch-screens >>>
@@ -31,19 +45,4 @@ end
 -- <<< mewarch-screens <<<
 EOF
 
-# show what the monitor supports, so you can check the mode exists
-if command -v hyprctl >/dev/null; then
-  RT=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-  export HYPRLAND_INSTANCE_SIGNATURE=${HYPRLAND_INSTANCE_SIGNATURE:-$(ls -t "$RT/hypr/" 2>/dev/null | head -1)}
-  if hyprctl monitors all 2>/dev/null | grep -q availableModes; then
-    want=${MODE%@*}; hz=${MODE#*@}
-    if hyprctl monitors all | grep availableModes | grep -q "${want}@${hz}"; then
-      echo "Your monitor supports $MODE :3"
-    else
-      echo "Heads-up: $MODE is not in the monitor's list. Supported modes with $want:"
-      hyprctl monitors all | grep availableModes | tr ' ' '\n' | grep "^${want}@" | sort -u || true
-      echo "(If it's wrong, run ./screen.sh with one of those, e.g. ./screen.sh ${want}@60)"
-    fi
-  fi
-fi
 echo "Done >w<  Reboot to apply:  sudo reboot"
