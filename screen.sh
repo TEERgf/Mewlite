@@ -35,6 +35,8 @@ PY2
 )
   CUSTOM=1
   echo "Custom mode: $MODE"
+elif [[ $MODE == modeline* ]]; then
+  CUSTOM=1                                  # a full modeline (used by resolution.sh)
 elif ! [[ $MODE =~ ^[0-9]+x[0-9]+(@[0-9.]+)?$ ]]; then
   echo "Mode should look like 1152x864@200  (or: ./screen.sh custom 1152 864 200)"; exit 1
 fi
