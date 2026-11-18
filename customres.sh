@@ -4,6 +4,8 @@
 #   customres 1152 864 120   create a custom resolution: tries it live, you type y to keep it
 #   customres native         back to the monitor's normal resolution (highest refresh)
 #   customres list           show the monitor's built-in modes and your saved one
+#   customres laptop-off     turn the laptop screen off now (big monitor only)
+#   customres laptop-on      turn the laptop screen back on now
 #
 # Run inside Hyprland (Win+T). Nothing is saved unless you confirm, and an unconfirmed
 # mode switches back by itself after 15 s, so a black screen can't get you stuck.
@@ -40,7 +42,19 @@ end
 EOF
 }
 
+laptop(){  # $1 = true (off) / false (on), applied live
+  for e in $(hyprctl monitors all -j | python3 -c '
+import json, sys
+print(" ".join(m["name"] for m in json.load(sys.stdin) if m["name"].startswith(("eDP", "LVDS"))))'); do
+    hyprctl eval "hl.monitor({ output = '$e', disabled = $1 })" >/dev/null 2>&1
+  done
+}
+
 case "${1:-help}" in
+  laptop-off)
+    laptop true;  echo "Laptop screen off. Big monitor only :3  (laptop-on to undo)"; exit 0 ;;
+  laptop-on)
+    laptop false; echo "Laptop screen on again."; exit 0 ;;
   list)
     echo "Built-in modes of $OUT:"
     hyprctl monitors all -j | python3 -c '
@@ -57,7 +71,7 @@ for m in json.load(sys.stdin):
     echo "Back to the monitor's normal resolution at its highest refresh rate."
     exit 0 ;;
   help|-h|--help)
-    sed -n '2,13p' "$0"; exit 0 ;;
+    sed -n '2,15p' "$0"; exit 0 ;;
 esac
 
 W=${1:?width}; H=${2:?height}; R=${3:-60}
@@ -92,7 +106,8 @@ PY
 )")
 fi
 
-echo "Monitor: $OUT   Target: ${W}x${H} @ ${R} Hz"
+laptop true          # laptop screen off first, so only the big monitor changes
+echo "Laptop screen off. Monitor: $OUT   Target: ${W}x${H} @ ${R} Hz"
 n=0
 for M in "${cands[@]}"; do
   [[ -n $M ]] || continue
