@@ -36,5 +36,16 @@ end)
 -- <<< mewarch-welcome <<<
 EOF
 
+# 3) always lock before sleep / lid close (Caelestia default, forced on here)
+python3 - "$HOME/.config/caelestia/shell.json" <<'PY2'
+import json, os, sys
+p = sys.argv[1]; cfg = {}
+if os.path.exists(p):
+    try: cfg = json.load(open(p))
+    except Exception: os.rename(p, p + ".bak")
+cfg.setdefault("general", {}).setdefault("idle", {})["lockBeforeSleep"] = True
+json.dump(cfg, open(p, "w"), indent=4, ensure_ascii=False)
+PY2
+
 echo "Welcome screen on >w<  Reboot to see it:  sudo reboot"
 echo "(Turn off again with:  ./welcome.sh --off)"
