@@ -1,3 +1,7 @@
+# Builds the MewArch ISO on GitHub's servers — no Arch machine needed.
+# Push this folder to a GitHub repo, open the "Actions" tab, pick
+# "Build MewArch ISO" and press "Run workflow". The .iso appears under
+# "Artifacts" on the finished run (download is a .zip containing the .iso).
 name: Build MewArch ISO
 
 on:

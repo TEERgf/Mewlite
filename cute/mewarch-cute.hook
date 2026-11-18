@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = caelestia-shell*
+Target = filesystem
+
+[Action]
+Description = Re-applying MewArch cute tweaks >w<
+When = PostTransaction
+Exec = /usr/local/bin/mewarch-cute-system

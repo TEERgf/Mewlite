@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# MewArch >w< installer (runs on the live ISO as root).
+# 1) archinstall puts a minimal Arch on your disk
+# 2) the MewArch kit is copied to your user, and runs by itself on first login
+set -uo pipefail
+pink(){ printf '\e[38;2;245;169;184m%s\e[0m\n' "$*"; }
+KIT=/root/mewarch
+
+clear; pink "
+   /\\_/\\     MewArch installer
+  ( >w< )    Arch + Hyprland + Caelestia, NVIDIA/Optimus ready
+   > ^ <     ~ let's go :3
+"
+until ping -c1 -W3 archlinux.org &>/dev/null; do
+  echo "No internet yet (｡•́︿•̀｡)"
+  echo "  Wi-Fi:    iwctl   ->  station wlan0 connect \"<network name>\""
+  echo "  Ethernet: should work by itself, check the cable"
+  read -rp "Press Enter to try again (or Ctrl+C to quit)... "
+done
+
+pink "In archinstall, please choose:"
+cat <<'EOF'
+  • Profile ............ Minimal         (MewArch installs Hyprland + Caelestia itself)
+  • Network ............ NetworkManager  (Caelestia needs it)
+  • User account ....... add your user and make it a superuser (sudo)
+  • Audio .............. Pipewire
+  • Kernels ............ linux  (MewArch can add linux-zen later)
+  • Leave graphics drivers alone, MewArch installs the right NVIDIA driver.
+EOF
+read -rp "Press Enter to start archinstall... "
+archinstall || { echo "archinstall exited with an error ;w;"; }
+
+# find the freshly installed system
+if [[ ! -f /mnt/etc/arch-release ]]; then
+  echo; lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS
+  read -rp "Which partition is the new root (e.g. /dev/nvme0n1p2)? " part
+  if [[ $(lsblk -no FSTYPE "$part") == btrfs ]]; then
+    mount -o subvol=@ "$part" /mnt 2>/dev/null || mount "$part" /mnt
+  else
+    mount "$part" /mnt
+  fi
+fi
+[[ -f /mnt/etc/arch-release ]] || { echo "Couldn't find the new system at /mnt ;w;"; exit 1; }
+
+FLAGS="--yes"
+read -rp "MewArch Lite? full Caelestia, trimmed for lowest RAM (recommended) [Y/n] " r; [[ -z $r || $r =~ ^[Yy] ]] && FLAGS+=" --lite"
+read -rp "Also install the linux-zen kernel? [y/N] " r;               [[ $r =~ ^[Yy] ]] && FLAGS+=" --zen"
+
+# give the first-boot setup enough sudo time for long AUR builds (removed again at the end)
+echo 'Defaults timestamp_timeout=60' > /mnt/etc/sudoers.d/00-mewarch-firstboot
+chmod 440 /mnt/etc/sudoers.d/00-mewarch-firstboot
+
+found=0
+for home in /mnt/home/*/; do
+  [[ -d $home ]] || continue
+  owner=$(stat -c '%u:%g' "$home")
+  rm -rf "$home/mewarch"; cp -r "$KIT" "$home/mewarch"
+  echo "$FLAGS" > "$home/mewarch/.flags"; touch "$home/mewarch/.firstboot"
+  if ! grep -q mewarch-firstboot "$home/.bash_profile" 2>/dev/null; then
+    cat >> "$home/.bash_profile" <<'EOF'
+
+# mewarch-firstboot (removes itself after a successful run)
+if [ -f ~/mewarch/.firstboot ] && [ "$(tty)" = /dev/tty1 ]; then
+  printf '\e[38;2;245;169;184m  hiii >w< finishing MewArch setup, this takes a while...\e[0m\n'
+  until ping -c1 -W3 archlinux.org >/dev/null 2>&1; do echo "need internet :3"; nmtui-connect; done
+  if ~/mewarch/install.sh $(cat ~/mewarch/.flags); then
+    rm -f ~/mewarch/.firstboot
+    sed -i '/# mewarch-firstboot/,/^fi$/d' ~/.bash_profile
+    echo "all done! rebooting into MewArch (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧"; sleep 3; sudo reboot
+  else
+    echo "setup hit an error ;w;  fix it and log in again on TTY1 to retry"
+  fi
+fi
+EOF
+  fi
+  chown -R "$owner" "$home/mewarch" "$home/.bash_profile"
+  pink "  set up first-boot for $(basename "$home") :3"; found=1
+done
+[[ $found == 1 ]] || { echo "No user found in /home – did you add a user in archinstall? ;w;"; exit 1; }
+
+umount -R /mnt 2>/dev/null || true
+pink "
+  Installed! Remove the USB, reboot, and log in on TTY1.
+  MewArch will finish setting itself up (needs internet), then reboot into Hyprland >w<
+"
+read -rp "Reboot now? [Y/n] " r; [[ -z $r || $r =~ ^[Yy] ]] && reboot
