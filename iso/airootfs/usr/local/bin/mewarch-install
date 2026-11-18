@@ -5,6 +5,8 @@
 set -uo pipefail
 pink(){ printf '\e[38;2;245;169;184m%s\e[0m\n' "$*"; }
 KIT=/root/mewarch
+SKIP_ARCHINSTALL=0
+[[ ${1:-} == --skip-archinstall ]] && SKIP_ARCHINSTALL=1
 
 clear; pink "
    /\\_/\\     MewArch installer
@@ -31,8 +33,10 @@ cat <<'EOF'
   • Kernels ............ linux  (MewArch can add linux-zen later)
   • Leave graphics drivers alone, MewArch installs the right NVIDIA driver.
 EOF
-read -rp "Press Enter to start archinstall... "
-archinstall || { echo "archinstall exited with an error ;w;"; }
+if [[ $SKIP_ARCHINSTALL == 0 ]]; then
+  read -rp "Press Enter to start archinstall... "
+  archinstall || { echo "archinstall exited with an error ;w;"; }
+fi
 
 # find the freshly installed system
 if [[ ! -f /mnt/etc/arch-release ]]; then
@@ -52,6 +56,21 @@ if lsmod | grep -q '^vmd'; then
   grep -q 'MODULES=(.*vmd' /mnt/etc/mkinitcpio.conf || sed -i 's/^MODULES=(/MODULES=(vmd /' /mnt/etc/mkinitcpio.conf
   echo vmd > /mnt/etc/modules-load.d/vmd.conf
   arch-chroot /mnt mkinitcpio -P
+fi
+
+# no user created in archinstall? make one now
+if ! ls -d /mnt/home/*/ &>/dev/null; then
+  pink "  No user account found, let's make one :3"
+  while :; do
+    read -rp "Username (lowercase, no spaces): " NEWUSER
+    [[ $NEWUSER =~ ^[a-z_][a-z0-9_-]*$ ]] && break
+    echo "Only lowercase letters, numbers, - and _ please ;w;"
+  done
+  arch-chroot /mnt useradd -m -G wheel -s /bin/bash "$NEWUSER"
+  until arch-chroot /mnt passwd "$NEWUSER"; do echo "Let's try that again"; done
+  echo '%wheel ALL=(ALL:ALL) ALL' > /mnt/etc/sudoers.d/10-wheel
+  chmod 440 /mnt/etc/sudoers.d/10-wheel
+  arch-chroot /mnt systemctl enable NetworkManager 2>/dev/null || true
 fi
 
 FLAGS="--yes"
