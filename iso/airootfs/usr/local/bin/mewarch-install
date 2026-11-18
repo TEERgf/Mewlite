@@ -18,6 +18,10 @@ until ping -c1 -W3 archlinux.org &>/dev/null; do
   read -rp "Press Enter to try again (or Ctrl+C to quit)... "
 done
 
+# Intel RST/VMD laptops: Linux needs the vmd driver to see the NVMe drive
+modprobe vmd 2>/dev/null || true
+sleep 1
+
 pink "In archinstall, please choose:"
 cat <<'EOF'
   • Profile ............ Minimal         (MewArch installs Hyprland + Caelestia itself)
@@ -41,6 +45,14 @@ if [[ ! -f /mnt/etc/arch-release ]]; then
   fi
 fi
 [[ -f /mnt/etc/arch-release ]] || { echo "Couldn't find the new system at /mnt ;w;"; exit 1; }
+
+# if this PC needed the vmd driver, make the installed system load it at boot too
+if lsmod | grep -q '^vmd'; then
+  pink "  Intel VMD detected, adding the vmd driver to the new system :3"
+  grep -q 'MODULES=(.*vmd' /mnt/etc/mkinitcpio.conf || sed -i 's/^MODULES=(/MODULES=(vmd /' /mnt/etc/mkinitcpio.conf
+  echo vmd > /mnt/etc/modules-load.d/vmd.conf
+  arch-chroot /mnt mkinitcpio -P
+fi
 
 FLAGS="--yes"
 read -rp "MewArch Lite? full Caelestia, trimmed for lowest RAM (recommended) [Y/n] " r; [[ -z $r || $r =~ ^[Yy] ]] && FLAGS+=" --lite"
