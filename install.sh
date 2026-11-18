@@ -65,7 +65,7 @@ if ask "1) Tune pacman/makepkg (parallel downloads, multilib, fast mirrors)?"; t
   sudo sed -i "s/^#\?MAKEFLAGS=.*/MAKEFLAGS=\"-j$(nproc)\"/" /etc/makepkg.conf
   # skip compressing AUR packages you build yourself (much faster builds)
   sudo sed -i "s/^PKGEXT=.*/PKGEXT='.pkg.tar'/" /etc/makepkg.conf
-  pac reflector
+  sudo pacman -Sy --needed --noconfirm reflector   # -y: refresh so the newly enabled [multilib] db exists
   sudo reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist || c_warn "reflector failed, keeping mirrors"
   sudo pacman -Syu --noconfirm
 fi
