@@ -239,9 +239,23 @@ DNSOverTLS=opportunistic
 DNSSEC=no
 Cache=yes
 EOF
+  # switch everything over in one go, so Wi-Fi is only down for a few seconds
+  sudo systemctl enable --now systemd-resolved iwd
+  sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
   sudo systemctl disable --now wpa_supplicant.service 2>/dev/null || true
-  sudo systemctl enable systemd-resolved NetworkManager
-  sudo systemctl disable iwd.service 2>/dev/null || true   # NM starts iwd itself
+  sudo systemctl enable NetworkManager
+  sudo systemctl restart NetworkManager
+  c_info "Reconnecting Wi-Fi (saved networks reconnect by themselves)..."
+  for i in $(seq 1 30); do ping -c1 -W2 archlinux.org &>/dev/null && break; sleep 2; done
+  if ! ping -c1 -W3 archlinux.org &>/dev/null; then
+    c_warn "No internet after switching to iwd -> going back to wpa_supplicant"
+    sudo rm -f /etc/NetworkManager/conf.d/10-iwd.conf
+    sudo systemctl disable --now iwd
+    sudo systemctl enable --now wpa_supplicant
+    sudo systemctl restart NetworkManager
+    for i in $(seq 1 30); do ping -c1 -W2 archlinux.org &>/dev/null && break; sleep 2; done
+    ping -c1 -W3 archlinux.org &>/dev/null || { c_err "Still offline. Connect with: nmtui   then run ./install.sh --lite again"; exit 1; }
+  fi
 fi
 
 # ----------------------------------------------- 8. Hyprland + Caelestia --
